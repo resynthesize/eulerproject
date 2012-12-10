@@ -1,0 +1,15 @@
+# Only enforce policies listed here explicitly
+only = 1
+
+severity = 1
+verbose = %m at %f line %l [%p]\n
+
+[Moose::RequireMakeImmutable]
+
+[TestingAndDebugging::RequireUseStrict]
+equivalent_modules = Moose Poet Poet::Script PS::Moose Test::Class::Most
+
+[TestingAndDebugging::RequireUseWarnings]
+equivalent_modules = Moose Poet Poet::Script PS::Moose Test::Class::Most
+
+[Variables::ProhibitConditionalDeclarations]
