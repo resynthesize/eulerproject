@@ -52,8 +52,6 @@ method _build_primes ()
         }
     }
 
-#    print Dumper @list;
-
     # at this point, any indice with a value of 1 is prime.  I haven't
     # figured out a good way to avoid making this duplicate 'prime' list yet.
     # perl's slice is destructive and alters indice order

@@ -11,15 +11,16 @@
 
 package Euler::Problem11;
 use Method::Signatures::Simple;
-use Data::Dumper;
 use Moose;
 
 extends 'Euler';
 
 has 'answer'       => ( is => "rw" );
 has 'answers'      => ( is => "rw", lazy_build => 1 );
+has 'inner_edge'   => ( is => "rw", lazy_build => 1 );
 has 'matrix'       => ( is => "rw", lazy_build => 1 );
 has 'num_adjacent' => ( is => "ro", default=> 4 );
+has 'outer_edge'   => ( is => "rw", lazy_build => 1 );
 has 'row_len'      => ( is => "rw", lazy_build => 1 );
 
 method _build_row_len ()
@@ -27,10 +28,36 @@ method _build_row_len ()
     return @{ $self->matrix->[0] } - 1;
 }
 
+method _build_outer_edge ()
+{
+    # define the "edge" of a row or column as the boundary at
+    # which we don't have enough remaining numbers to multiply together
+    # to meet the requirement of four adjacent numbers.
+    my $outer_edge = $self->row_len - $self->num_adjacent + 1;
+    return $outer_edge;
+
+    # 19 - 4 + 1 = 16
+}
+
+method _build_inner_edge ()
+{
+    my $inner_edge = $self->num_adjacent - 1;
+    return $inner_edge;
+
+    # 4 - 1 = 3
+}
+
+method max (@ar)
+{
+    my @sorted = sort { $a <=> $b } @ar;
+    return pop @sorted;
+}
+
 method _build_matrix ()
 {
     my @matrix;
-    my $grid = "08 02 22 97 38 15 00 40 00 75 04 05 07 78 52 12 50 77 91 08
+    my $grid = "
+08 02 22 97 38 15 00 40 00 75 04 05 07 78 52 12 50 77 91 08
 49 49 99 40 17 81 18 57 60 87 17 40 98 43 69 48 04 56 62 00
 81 49 31 73 55 79 14 29 93 71 40 67 53 88 30 03 49 13 36 65
 52 70 95 23 04 60 11 42 69 24 68 56 01 32 56 71 37 02 36 91
@@ -51,7 +78,8 @@ method _build_matrix ()
 20 73 35 29 78 31 90 01 74 31 49 71 48 86 81 16 23 57 05 54
 01 70 54 71 83 51 54 69 16 92 33 48 61 43 52 01 89 19 67 48";
 
-    my @rows     = split( /\n/, $grid );
+    my @rows = split( /\n/, $grid );
+    shift @rows;
     my $rowcount = 0;
     my $colcount = 0;
 
@@ -62,9 +90,7 @@ method _build_matrix ()
         $rowcount++;
     }
 
-    print Dumper @matrix;
     return \@matrix;
-
 }
 
 method _build_answers ()
@@ -74,6 +100,8 @@ method _build_answers ()
 
 method _horizontal_product ($row, $col)
 {
+    return if $col > $self->outer_edge;
+
     my $product = $self->matrix->[$row][$col];
     for my $i ( 1 .. $self->num_adjacent - 1 )
     {
@@ -84,6 +112,12 @@ method _horizontal_product ($row, $col)
 
 method _vertical_product ($row, $col)
 {
+    # don't calculate if we're on the outer edge
+    if ( $row > $self->outer_edge )
+    {
+        return 0;
+    }
+
     my $product = $self->matrix->[$row][$col];
     for my $i ( 1 .. $self->num_adjacent - 1 )
     {
@@ -92,58 +126,63 @@ method _vertical_product ($row, $col)
     return $product;
 }
 
-method _diagonal_product ($row, $col, $direction);
+method _diagonal_product ($row, $col)
 {
     my $product = $self->matrix->[$row][$col];
-    if ( $direction eq "forward" )
+    my @diagonals;
+
+    # southeast
+    if ( $row > $self->outer_edge or $col > $self->outer_edge )
+    {
+        push @diagonals, 0;
+    }
+    else
     {
         for my $i ( 1 .. $self->num_adjacent - 1 )
         {
             $product *= $self->matrix->[ $row + $i ][ $col + $i ];
         }
+        push @diagonals, $product;
     }
-    elsif ( $direction eq "backward" )
+
+    $product = $self->matrix->[$row][$col];
+
+    # southwest
+    if ( $row < $self->num_adjacent or $col > $self->outer_edge )
     {
-        for ( my $i = $self->num_adjacent - 1 ; $i > 0 ; $i-- )
+        push @diagonals, 0;
+    }
+    else
+    {
+        for my $i ( 1 .. $self->num_adjacent - 1 )
         {
-            product *= $self->matrix->[ $row - $i ][ $col - $i ];
+            $product *= $self->matrix->[ $row - $i ][ $col + $i ];
         }
+        push @diagonals, $product;
 
     }
 
+    return $self->max(@diagonals);
 }
 
 method attempt1 ()
 {
     my $greatest = 0;
 
-    for my $row ( 0 .. ( $self->row_len - $self->num_adjacent ) )
+    for my $row ( 0 .. $self->row_len )
     {
-        for my $col ( 0 .. ( $self->row_len - $self->num_adjacent ) )
+        for my $col ( 0 .. $self->row_len )
         {
-            # horizontal
-            my $horizontal_product =
-              if ( $horizontal_product > $greatest )
-            {
-                $greatest = $horizontal_product;
-            }
+            my @products;
+            push @products,
+              (
+                $greatest,
+                $self->_horizontal_product( $row, $col ),
+                $self->_vertical_product( $row, $col ),
+                $self->_diagonal_product( $row, $col ),
+              );
 
-            # vertical
-            my $vertical_product =
-              if ( $vertical_product > $greatest )
-            {
-                $greatest = $vertical_product;
-            }
-
-            # diagonal
-            my $diagonal_product =
-              if ( $vertical_product > $greatest )
-            {
-                $greatest = $vertical_product;
-            }
-
-            print
-              "$row, $col, $horizontal_product, $vertical_product, $diagonal_product\n";
+            $greatest = $self->max(@products);
         }
 
     }

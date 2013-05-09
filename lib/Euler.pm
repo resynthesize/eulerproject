@@ -5,8 +5,6 @@
 # http://projecteuler.net/
 
 package Euler;
-use strict;
-use warnings;
 use Time::HiRes qw/gettimeofday tv_interval/;
 use Method::Signatures::Simple;
 use Moose;
